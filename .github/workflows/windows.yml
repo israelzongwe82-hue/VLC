@@ -1,0 +1,128 @@
+name: Construire Israël Media Player pour Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'index.html'
+      - 'images/**'
+      - '.github/workflows/windows.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Construire l'application Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Télécharger le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Vérifier les fichiers nécessaires
+        shell: pwsh
+        run: |
+          if (!(Test-Path "index.html")) {
+            Write-Error "ERREUR : index.html introuvable."
+            exit 1
+          }
+
+          if (!(Test-Path "images/icon.png")) {
+            Write-Error "ERREUR : images/icon.png introuvable."
+            exit 1
+          }
+
+      - name: Préparer le projet
+        shell: pwsh
+        run: |
+          npm init -y
+          npm install electron electron-builder --save-dev
+
+          New-Item -ItemType Directory -Force -Path "www" | Out-Null
+          Copy-Item "index.html" "www/index.html"
+          if (Test-Path "images") {
+            Copy-Item "images" "www/images" -Recurse -Force
+          }
+
+          @'
+          const { app, BrowserWindow } = require('electron');
+          const path = require('path');
+
+          function createWindow() {
+            const win = new BrowserWindow({
+              width: 1200,
+              height: 800,
+              minWidth: 360,
+              minHeight: 500,
+              autoHideMenuBar: true,
+              backgroundColor: '#111111',
+              webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true
+              }
+            });
+
+            win.loadFile(path.join(__dirname, 'www', 'index.html'));
+          }
+
+          app.whenReady().then(() => {
+            createWindow();
+
+            app.on('activate', () => {
+              if (BrowserWindow.getAllWindows().length === 0) {
+                createWindow();
+              }
+            });
+          });
+
+          app.on('window-all-closed', () => {
+            if (process.platform !== 'darwin') app.quit();
+          });
+          '@ | Set-Content -Encoding UTF8 "main.cjs"
+
+          @'
+          {
+            "name": "israel-media-player",
+            "version": "1.0.0",
+            "description": "Israël Media Player",
+            "main": "main.cjs",
+            "author": "KIBWE ZONGWE Israël",
+            "scripts": {
+              "dist": "electron-builder --win portable"
+            },
+            "build": {
+              "appId": "com.israelzongwe.mediaplayer",
+              "productName": "Israël Media Player",
+              "directories": {
+                "output": "dist"
+              },
+              "files": [
+                "main.cjs",
+                "www/**/*"
+              ],
+              "win": {
+                "target": ["portable"],
+                "icon": "images/icon.png"
+              }
+            }
+          }
+          '@ | Set-Content -Encoding UTF8 "package.json"
+
+      - name: Construire l'application Windows
+        run: npm run dist
+
+      - name: Publier l'application Windows
+        uses: actions/upload-artifact@v4
+        with:
+          name: Israel-Media-Player-Windows
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 14
