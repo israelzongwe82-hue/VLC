@@ -1,4 +1,4 @@
-name: Construire Israël Media Player APK Android
+name: Construire KIZ OS APK Android
 
 on:
   workflow_dispatch:
@@ -15,8 +15,9 @@ permissions:
 
 jobs:
   build-android:
-    name: Construire l'APK Android
+    name: Construire KIZ OS
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - name: Télécharger le dépôt
@@ -25,7 +26,7 @@ jobs:
       - name: Installer Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22'
 
       - name: Installer Java
         uses: actions/setup-java@v4
@@ -34,95 +35,51 @@ jobs:
           java-version: '21'
 
       - name: Installer Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+        uses: android-actions/setup-android@v3
 
-      - name: Vérifier les fichiers nécessaires
+      - name: Vérifier les fichiers
         run: |
-          test -f index.html || { echo "ERREUR : index.html introuvable."; exit 1; }
-          test -f images/icon.png || { echo "ERREUR : images/icon.png introuvable."; exit 1; }
-          if [ ! -f images/splash.png ] && [ ! -f images/splash-screen.png ]; then
-            echo "ERREUR : images/splash.png ou images/splash-screen.png est nécessaire."
-            exit 1
-          fi
+          test -f index.html
+          test -f images/icon.png
+          echo "Fichiers de KIZ OS vérifiés."
+
+      - name: Préparer le projet
+        run: |
+          mkdir -p www/images
+          cp index.html www/index.html
+          cp -r images/. www/images/
 
       - name: Installer Capacitor
         run: |
           npm init -y
-          npm install @capacitor/core @capacitor/android @capacitor/cli @capacitor/assets
+          npm install @capacitor/core@7 @capacitor/android@7 @capacitor/cli@7
 
-          cat > capacitor.config.json <<'JSON'
+      - name: Configurer KIZ OS
+        run: |
+          cat > capacitor.config.json <<'EOF'
           {
-            "appId": "com.israelzongwe.horlogeparfaite",
-            "appName": "Israël Media Player",
+            "appId": "com.israelzongwe.kizos",
+            "appName": "KIZ OS",
             "webDir": "www"
           }
-          JSON
-
-      - name: Préparer les fichiers de l'application
-        run: |
-          mkdir -p www
-          cp index.html www/
-          cp -R images www/
-
-      - name: Préparer l'icône et l'écran de démarrage
-        run: |
-          python3 -m pip install Pillow
-          python3 - <<'PY'
-          from pathlib import Path
-          from PIL import Image, ImageOps
-
-          Path("assets").mkdir(exist_ok=True)
-
-          def prepare(source, size, background):
-              image = Image.open(source).convert("RGBA")
-              image = ImageOps.contain(
-                  image, (size, size), method=Image.Resampling.LANCZOS
-              )
-              canvas = Image.new("RGBA", (size, size), background)
-              canvas.alpha_composite(
-                  image,
-                  ((size - image.width) // 2, (size - image.height) // 2)
-              )
-              return canvas
-
-          icon = prepare("images/icon.png", 1024, (0, 0, 0, 0))
-          icon.save("assets/icon-only.png")
-          icon.save("assets/icon-foreground.png")
-          Image.new("RGB", (1024, 1024), (7, 20, 38)).save(
-              "assets/icon-background.png"
-          )
-
-          splash_source = (
-              "images/splash.png"
-              if Path("images/splash.png").is_file()
-              else "images/splash-screen.png"
-          )
-          prepare(splash_source, 2732, (7, 20, 38, 255)).convert("RGB").save(
-              "assets/splash.png"
-          )
-          PY
+          EOF
 
       - name: Ajouter Android
         run: npx cap add android
 
-      - name: Générer les ressources Android
-        run: npx capacitor-assets generate --android
-
-      - name: Synchroniser le projet
+      - name: Synchroniser les fichiers
         run: npx cap sync android
 
       - name: Construire l'APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          ./gradlew assembleDebug
 
       - name: Publier l'APK
         uses: actions/upload-artifact@v4
         with:
-          name: Israel-Media-Player-Android-APK
+          name: KIZ-OS-Android-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
