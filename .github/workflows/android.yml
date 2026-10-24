@@ -1,85 +1,86 @@
 name: Construire KIZ OS APK Android
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - 'index.html'
-      - 'images/**'
-      - '.github/workflows/android.yml'
+workflow_dispatch:
+push:
+branches:
+- main
+paths:
+- 'index.html'
+- 'images/**'
+- '.github/workflows/android.yml'
 
 permissions:
-  contents: read
+contents: read
 
 jobs:
-  build-android:
-    name: Construire KIZ OS
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+build-android:
+name: Construire KIZ OS
+runs-on: ubuntu-latest
+timeout-minutes: 45
 
-    steps:
-      - name: Télécharger le dépôt
-        uses: actions/checkout@v4
+steps:  
+  - name: Télécharger le dépôt  
+    uses: actions/checkout@v4  
 
-      - name: Installer Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+  - name: Installer Node.js  
+    uses: actions/setup-node@v4  
+    with:  
+      node-version: '22'  
 
-      - name: Installer Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
+  - name: Installer Java  
+    uses: actions/setup-java@v4  
+    with:  
+      distribution: temurin  
+      java-version: '21'  
 
-      - name: Installer Android SDK
-        uses: android-actions/setup-android@v3
+  - name: Installer Android SDK  
+    uses: android-actions/setup-android@v3  
 
-      - name: Vérifier les fichiers
-        run: |
-          test -f index.html
-          test -f images/icon.png
-          echo "Fichiers de KIZ OS vérifiés."
+  - name: Vérifier les fichiers  
+    run: |  
+      test -f index.html  
+      test -f images/icon.png  
+      echo "Fichiers de KIZ OS vérifiés."  
 
-      - name: Préparer le projet
-        run: |
-          mkdir -p www/images
-          cp index.html www/index.html
-          cp -r images/. www/images/
+  - name: Préparer le projet  
+    run: |  
+      mkdir -p www/images  
+      cp index.html www/index.html  
+      cp -r images/. www/images/  
 
-      - name: Installer Capacitor
-        run: |
-          npm init -y
-          npm install @capacitor/core@7 @capacitor/android@7 @capacitor/cli@7
+  - name: Installer Capacitor  
+    run: |  
+      npm init -y  
+      npm install @capacitor/core@7 @capacitor/android@7 @capacitor/cli@7  
 
-      - name: Configurer KIZ OS
-        run: |
-          cat > capacitor.config.json <<'EOF'
-          {
-            "appId": "com.israelzongwe.kizos",
-            "appName": "KIZ OS",
-            "webDir": "www"
-          }
-          EOF
+  - name: Configurer KIZ OS  
+    run: |  
+      cat > capacitor.config.json <<'EOF'  
+      {  
+        "appId": "com.israelzongwe.kizos",  
+        "appName": "KIZ OS",  
+        "webDir": "www",  
+        "bundledWebRuntime": false  
+      }  
+      EOF  
 
-      - name: Ajouter Android
-        run: npx cap add android
+  - name: Ajouter Android  
+    run: npx cap add android  
 
-      - name: Synchroniser les fichiers
-        run: npx cap sync android
+  - name: Synchroniser les fichiers  
+    run: npx cap sync android  
 
-      - name: Construire l'APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+  - name: Construire l'APK  
+    run: |  
+      cd android  
+      chmod +x gradlew  
+      ./gradlew assembleDebug  
 
-      - name: Publier l'APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: KIZ-OS-Android-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
+  - name: Publier l'APK  
+    uses: actions/upload-artifact@v4  
+    with:  
+      name: KIZ-OS-Android-APK  
+      path: android/app/build/outputs/apk/debug/app-debug.apk  
+      if-no-files-found: error  
+      retention-days: 14
